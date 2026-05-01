@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account and credit information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "credits": { "type": "number" },
+        "tier": { "type": "string", "enum": ["free", "pro", "elite"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "credits"]
+    },
+    "Transformation": {
+      "title": "AI Transformation",
+      "description": "A generated glowup image",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "inputImage": { "type": "string" },
+        "outfitImage": { "type": "string" },
+        "resultImage": { "type": "string" },
+        "preset": { "type": "string" },
+        "prompt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "resultImage", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Credit Payment",
+      "description": "Razorpay transaction record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "orderId": { "type": "string" },
+        "paymentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "credits": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "orderId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/transformations/{transId}": {
+      "schema": "Transformation",
+      "description": "Generated images history"
+    },
+    "/transactions/{txnId}": {
+      "schema": "Transaction",
+      "description": "Payment records"
+    },
+    "/shares/{shareId}": {
+      "schema": "Transformation",
+      "description": "Publicly shared transformations"
+    }
+  }
+}

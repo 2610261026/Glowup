@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Pillar 2: Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'credits', 'createdAt']) &&
+             data.keys().size() >= 4 &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 256 &&
+             data.credits is number && data.credits >= 0 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidTransformation(data) {
+      return data.keys().hasAll(['userId', 'resultImage', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.resultImage is string && data.resultImage.size() <= 1000000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'orderId', 'status', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.orderId is string &&
+             data.status in ['pending', 'completed', 'failed'] &&
+             data.createdAt == request.time;
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && 
+                    isValidUser(incoming()) && 
+                    // Protect credits - only system can update? 
+                    // For now, allow owner but in real app would use Cloud Functions
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email']);
+    }
+
+    // 2. Transformations
+    match /transformations/{transId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(transId) && isValidTransformation(incoming());
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 3. Transactions
+    match /transactions/{txnId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(txnId) && isValidTransaction(incoming());
+    }
+  }
+}
